@@ -10,12 +10,11 @@ import dtcwt.tf #note: may need to change this for web release.
 
 #from numba import jit
 
-def phase_vocode(coeffs, pitchFactor, t_orig=None):
+def phase_vocode(coeffs, pitchFactor):
     #from here, I will make a few references to this paper, which I have been cheating off of:
     #http://users.ece.utexas.edu/~bevans/students/ms/jeff_livingston/ms.pdf
     
     #1. convert complex coefficients to magnitude and phase form.
-
     mag = np.abs(coeffs)
     phase = np.angle(coeffs)
     
@@ -27,21 +26,9 @@ def phase_vocode(coeffs, pitchFactor, t_orig=None):
     #I also skip the instanteous frequencies and phase propagation steps.
     #instead, I interpolate the phases directly.
     #===========================================
-    #mag_t = np.arange(0, mag.shape[0]) 
-    #phase_t = np.arange(0, phase.shape[0])
-
-    mag_t = None
-    phase_t = None
+    mag_t = np.arange(0, mag.shape[0]) 
+    phase_t = np.arange(0, phase.shape[0])
     
-    if t_orig is None:
-        mag_t = np.linspace(0, 1, num=mag.shape[0])
-        phase_t = np.linspace(0, 1, num=phase.shape[0])
-    else:
-        mag_t = t_orig
-        phase_t = t_orig
-    
-    mag_s = None
-    phase_s = None
     if isinstance(pitchFactor, np.ndarray):
         #may need to adjust this more in case pitchFactor has 2 or more dimensions?
         #(i.e., to work along the correct axis.)
@@ -49,22 +36,12 @@ def phase_vocode(coeffs, pitchFactor, t_orig=None):
         ip = interp1d(tp, pitchFactor, kind='cubic', fill_value='extrapolate')
         mag_s = mag_t * ip(mag_t)
         phase_s = phase_t * ip(phase_t)
+        #print(pitchFactor)
     else:    
         mag_s = mag_t * pitchFactor
         phase_s = phase_t * pitchFactor
-    #now the last points in mag_s and phase_s are equal to pitchFactor.
         
-    #make mag_s and phase_s have the same shape as mag and phase
-    #(then they will be treated as the timebases for mag and phase)
-    #since the original waveform was padded, its time goes from 0 to 1/pitchFactor.
-    padded_t = np.linspace(0, 1/pitchFactor, num=mag.shape[0])
-    mag_s = np.interp(padded_t, np.linspace(0,1,num=mag_s.shape[0]), mag_s)
-    phase_s = np.interp(padded_t, np.linspace(0,1,num=phase_s.shape[0]), phase_s)
-    
-    
-    #ideally there will be no values outside of extrapolation range.
-    #for that, I'm going to try something outside of this function that will
-    #necessitate passing in the timepoints
+        
     Ymag = np.transpose(
         np.array(
             [ interp1d(mag_s, mag[:,i], fill_value=mag[-1,i], bounds_error=False)(mag_t)
@@ -115,29 +92,10 @@ def padding_wave(t, freq):
 
 def pv_with_transform(waveform, pitchFactor, adjustHighpasses=False):
     transform = dtcwt.Transform1d()
-    #if the pitch factor is less than 1 (meaning the pitch is shifted up), then
-    #there needs to be a simple waveform added to the end of the original
-    #so that nothing will go out of interpolation range.
-    tfd = transform.forward(waveform, nlevels=1)
-    t_orig = [np.linspace(0, 1, num=tfd.lowpass.shape[0])] + [
-        np.linspace(0, 1, num=highpass.shape[0]) for highpass in tfd.highpasses]
     
-    #have no idea how to do this for an array.  maybe give up here?
-    ext_len = int((1/pitchFactor - pitchFactor) * waveform.shape[0])
-    pad = None
-    if ext_len > 0:
-        #maybe figure out the frequency needed with autocorrelation later?
-        pad = padding_wave(np.linspace(0, 1, num=ext_len), 440)
-    if pad is not None:
-        #some of this stuff might need to be tweaked.  shape and column vs row always kill me.
-        if waveform.ndim > 1:
-            pad = np.array([pad]*2).T
-        waveform = np.concatenate((waveform, pad), axis=-1)
-        
-        
-    #I *think* this should be fine.
+    
     tfd = transform.forward(waveform, nlevels=1)
-    new_lowpass = phase_vocode(tfd.lowpass, pitchFactor, t_orig[0])
+    new_lowpass = phase_vocode(tfd.lowpass, pitchFactor)
     
     #make sure length is correct.    
     ld = tfd.lowpass.shape[0] - new_lowpass.shape[0]
@@ -147,7 +105,7 @@ def pv_with_transform(waveform, pitchFactor, adjustHighpasses=False):
         tfd.lowpass = new_lowpass[:(tfd.lowpass.shape[0])]
         
     if adjustHighpasses:
-        new_highpasses = [phase_vocode(tfd.highpasses[i], pitchFactor, t_orig[i+1]) 
+        new_highpasses = [phase_vocode(tfd.highpasses[i], pitchFactor) 
                           for i in range(len(tfd.highpasses))]
         hds = [tfd.highpasses[i].shape[0] - new_highpasses[i].shape[0] for i in range(len(new_highpasses)) ]
         for i in range(len(hds)):
