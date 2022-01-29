@@ -80,6 +80,7 @@ def taper_end(t):
 def bwl_sawtooth(t, frequency, shape=None, rate=44100):
     #t is a numpy array as from linspace or arange.
     #e.g., t=np.linspace(0, 5, num=5*rate)
+    #frequency in Hz.
     limit = rate//2
     y = sawtooth(t*frequency*2*np.pi)
     #I think this should work?
@@ -171,16 +172,17 @@ def pitch_bend_demo():#input_wave, bend_wave):
     axs[1][1].plot(np.linspace(0,1,num=k.shape[0]), k)
     axs[1][1].set_yticks([-1, 1])
 
-def delay(waveform, ms, level=0.5, sr=44100):
-    delay_samples = sr//ms
-    delayed = waveform.copy()
+def delay(waveform, ms, level=0.5, *args, **kwargs):
+    delay_samples = int((ms/1000)* waveform.shape[0]) #shape/1000 = samples per ms.
+    print(delay_samples)
+    delayed = waveform.copy() * level
     if waveform.ndim == 2:
        delayed = np.pad(delayed, ((0,0),(delay_samples,0)), constant_values=0 )
     else:
         delayed = np.pad(delayed, (delay_samples,0), constant_values=0)
-    return waveform + delayed[:waveform.shape[0]]
+    return (waveform + delayed[:waveform.shape[0]])#
     #res =  convolve(waveform, delayed[:len(waveform)])
-    #return res[:len(res)//2 +1]
+    #return res[(len(res)//2):]
 
 
 #sr, orig = wavfile.read("C:\\Users\\Chara Lilith\\Music\\untitled.wav")
@@ -188,11 +190,11 @@ def delay(waveform, ms, level=0.5, sr=44100):
 #wavfile.write("C:\\Users\\Chara Lilith\\Music\\test.wav", sr, bent.astype(np.int16))
 
 t = np.linspace(0, 1, num=44100)
-x = np.sin(t*np.pi*2*15)
-y = delay(x, 50, level=0.3)
+x = bwl_sawtooth(t, 15)
+y = delay(x, 32, level=0.7)
 fig, axs = plt.subplots(1,2)
 axs[0].plot(t, x)
-axs[1].plot(y, x)
+axs[1].plot(t, y)
 
 #TODO: maybe find a resource on autocorrelation?
 #there's also this: https://github.com/audacity/audacity/blob/5519fb9fefc34b9533374d19309d00776cc00022/src/SpectrumAnalyst.cpp
