@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from scipy.io import wavfile
 from scipy.interpolate import interp1d
-from scipy.signal import sawtooth
+from scipy.signal import sawtooth, convolve
 from scipy.fft import fft,ifft #fftshift,ifftshift
 import numpy as np
 import matplotlib.pyplot as plt
@@ -171,18 +171,28 @@ def pitch_bend_demo():#input_wave, bend_wave):
     axs[1][1].plot(np.linspace(0,1,num=k.shape[0]), k)
     axs[1][1].set_yticks([-1, 1])
 
-def delay(waveform, ms, window):
-    pass
-
+def delay(waveform, ms, level=0.5, sr=44100):
+    delay_samples = sr//ms
+    delayed = waveform.copy()
+    if waveform.ndim == 2:
+       delayed = np.pad(delayed, ((0,0),(delay_samples,0)), constant_values=0 )
+    else:
+        delayed = np.pad(delayed, (delay_samples,0), constant_values=0)
+    return waveform + delayed[:waveform.shape[0]]
+    #res =  convolve(waveform, delayed[:len(waveform)])
+    #return res[:len(res)//2 +1]
 
 
 #sr, orig = wavfile.read("C:\\Users\\Chara Lilith\\Music\\untitled.wav")
 #bent = amplify(orig, pv_with_transform(orig, up_bend([0,0.25,0.5,0.7,1], [0,2,3,4,4])))
 #wavfile.write("C:\\Users\\Chara Lilith\\Music\\test.wav", sr, bent.astype(np.int16))
 
-
-
-
+t = np.linspace(0, 1, num=44100)
+x = np.sin(t*np.pi*2*15)
+y = delay(x, 50, level=0.3)
+fig, axs = plt.subplots(1,2)
+axs[0].plot(t, x)
+axs[1].plot(y, x)
 
 #TODO: maybe find a resource on autocorrelation?
 #there's also this: https://github.com/audacity/audacity/blob/5519fb9fefc34b9533374d19309d00776cc00022/src/SpectrumAnalyst.cpp
