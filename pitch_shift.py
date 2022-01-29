@@ -26,8 +26,10 @@ def phase_vocode(coeffs, pitchFactor):
     #I also skip the instanteous frequencies and phase propagation steps.
     #instead, I interpolate the phases directly.
     #===========================================
-    mag_t = np.arange(0, mag.shape[0]) 
-    phase_t = np.arange(0, phase.shape[0])
+    #mag_t = np.arange(0, mag.shape[0]) 
+    #phase_t = np.arange(0, phase.shape[0])
+    mag_t = np.linspace(0, 1, mag.shape[0])
+    phase_t = np.linspace(0, 1, phase.shape[0])
     
     if isinstance(pitchFactor, np.ndarray):
         #may need to adjust this more in case pitchFactor has 2 or more dimensions?
@@ -143,17 +145,16 @@ def demo_scale(inputW, outputW):
     )
     wavfile.write(outputW, sr, after.astype(np.int16))
 
-def up_bend(times, pitches, seconds=15, sr=44100, kind='cubic'):
+def up_bend(times, pitches, seconds=15, sr=44100, kind='linear'):
     #pitches and times will be arrays of equal length
-    #take pitches as semitones?
+    #take pitches as semitones
     pitches = [2**(-semitones/12) for semitones in pitches]
-    t = np.linspace(0, seconds, num=seconds*sr)
+    t = np.linspace(0, 1, num=seconds*sr)
     y = interp1d(times, pitches, kind, fill_value='extrapolate')
+    plt.plot(t, y(t))
     return y(t)
 
-#from scipy.signal import sawtooth
-
-def pitch_bend():#input_wave, bend_wave):
+def pitch_bend_demo():#input_wave, bend_wave):
     t = np.linspace(0, 2, num=44100*2)
     y = up_bend([0, 0.3, 0.7, 1], [0, 1, 2, 3], 2)
     fig, axs = plt.subplots(2,2)
@@ -170,11 +171,16 @@ def pitch_bend():#input_wave, bend_wave):
     axs[1][1].plot(np.linspace(0,1,num=k.shape[0]), k)
     axs[1][1].set_yticks([-1, 1])
 
+def delay(waveform, ms, window):
+    pass
+
+
+
 #sr, orig = wavfile.read("C:\\Users\\Chara Lilith\\Music\\untitled.wav")
-#bent = amplify(orig, pv_with_transform(orig, up_bend([0, .2, .5, .9], [0, 3, 5, 7]) ))
+#bent = amplify(orig, pv_with_transform(orig, up_bend([0,0.25,0.5,0.7,1], [0,2,3,4,4])))
 #wavfile.write("C:\\Users\\Chara Lilith\\Music\\test.wav", sr, bent.astype(np.int16))
-#demo_scale("C:\\Users\\Chara Lilith\\Music\\untitled.wav", "C:\\Users\\Chara Lilith\\Music\\test.wav")
-pitch_bend()
+
+
 
 
 
