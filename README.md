@@ -11,6 +11,12 @@ To pitch bend:
 curve = up_bend([0, 0.35, 0.6, 0.9, 1], [0, 1, 3, 5, 7, 7])
 shifted = pv_with_transform(waveform, curve)
 ```
+## What does it need to run?
+Your best bet is to install Anaconda, then `pip install dtcwt`.  I may add a requirements.txt in the future, and work on a package.  The way Python does packages has never worked for me.  (I think there are so many options because although there's "one right way to do it", they haven't found it yet.)
+
+Anyway, if you wanted the bare minimum it takes to run, that would be numpy, SciPy, and the dtcwt library.  Matplotlib could be removed (along with any plots), and while I have the backend for dtcwt set to TensorFlow, it can use Numpy instead.  You would just have to change `import dtcwt.tf` to just `import dtcwt`, or I think there was a way to explicitly set it as Numpy, but since that's the default it doesn't really matter.
+
+So there you go: Numpy, SciPy, and dtcwt.
 
 ## How does it work?
 It mostly implements the phase vocoder algorithm from this paper: http://users.ece.utexas.edu/~bevans/students/ms/jeff_livingston/ms.pdf.
