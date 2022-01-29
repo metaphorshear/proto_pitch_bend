@@ -1,7 +1,7 @@
 # proto pitch bend
 This was a little project that started when I wanted to build a whammy pedal.  Before ordering a microcontroller/tiny computer, it seemed wiser to get the proof of concept working in Python.  So that's what I did, and that's what this is.  It's still a work in progress, and it isn't designed to be maintainable so much as quick to experiment with (because I don't quite know what I'm doing.)
 
-##What's it do?
+## What's it do?
 It can pitch shift and pitch bend.  To pitch shift:
 ```
 shifted = pitch_shift(waveform, semitones)
@@ -30,7 +30,7 @@ There are several libraries for Python that implement wavelet transforms (includ
 ## What's wrong with it?
 When bending a pitch up, you might run out of data for interpolation, which leaves a bit of silence at the end of the audio.  I'm going to try adding delay to fix that.  The code might be kind of a mess from long hours shifting things around and trying to solve different problems.  It still needs to be adapted for/tested on real-time audio.  `up_bend` is a misleading name for a function that can bend in either direction, and it doesn't interpolate the bend curve well enough.  Linear interpolation has some strange sounds, and quadratic or higher kind of curve back in the wrong direction.  I didn't try to learn the math of Fourier series or wavelet transforms, so there may be subtleties (or obviousities) that I missed.  The comments need to be converted to helpful docstrings in a less annoying IDE than Spyder.
 
-#What's next?
+# What's next?
 As mentioned, I'm going to work on delay so upbends don't end too soon.  This project has been fun, and it feels like I learned a fair bit.  I would like to try creating distortion/overdrive, maybe some more time-based effects, and autocorrelation to help with debugging.
 
 I haven't ordered the Daisy yet, but when I do, I'm going to port this to it and try using my old BOSS expression pedal with it.  If I could find more expression pedals somewhere, and a decent enclosure, I might try selling some on Etsy.  Whammy pedals usually go for around $200, but it seems possible that one could be built for under $50.
