@@ -26,8 +26,6 @@ def phase_vocode(coeffs, pitchFactor):
     #I also skip the instanteous frequencies and phase propagation steps.
     #instead, I interpolate the phases directly.
     #===========================================
-    #mag_t = np.arange(0, mag.shape[0]) 
-    #phase_t = np.arange(0, phase.shape[0])
     mag_t = np.linspace(0, 1, mag.shape[0])
     phase_t = np.linspace(0, 1, phase.shape[0])
     
@@ -38,7 +36,6 @@ def phase_vocode(coeffs, pitchFactor):
         ip = interp1d(tp, pitchFactor, kind='cubic', fill_value='extrapolate')
         mag_s = mag_t * ip(mag_t)
         phase_s = phase_t * ip(phase_t)
-        #print(pitchFactor)
     else:    
         mag_s = mag_t * pitchFactor
         phase_s = phase_t * pitchFactor
