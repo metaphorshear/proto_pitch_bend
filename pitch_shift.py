@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 from scipy.io import wavfile
 from scipy.interpolate import interp1d
-from scipy.signal import sawtooth, convolve
+from scipy.signal import sawtooth, get_window
 from scipy.fft import fft,ifft #fftshift,ifftshift
 import numpy as np
 import matplotlib.pyplot as plt
 import dtcwt.tf #note: may need to change this for web release.
 #(so that users aren't locked to TensorFlow)
 
-#from numba import jit
+
+from numba import jit
 
 def phase_vocode(coeffs, pitchFactor):
     #from here, I will make a few references to this paper, which I have been cheating off of:
@@ -169,17 +170,19 @@ def pitch_bend_demo():#input_wave, bend_wave):
     axs[1][1].plot(np.linspace(0,1,num=k.shape[0]), k)
     axs[1][1].set_yticks([-1, 1])
 
-def delay(waveform, ms, level=0.5, *args, **kwargs):
-    delay_samples = int((ms/1000)* waveform.shape[0]) #shape/1000 = samples per ms.
-    print(delay_samples)
-    delayed = waveform.copy() * level
-    if waveform.ndim == 2:
-       delayed = np.pad(delayed, ((0,0),(delay_samples,0)), constant_values=0 )
-    else:
-        delayed = np.pad(delayed, (delay_samples,0), constant_values=0)
-    return (waveform + delayed[:waveform.shape[0]])#
-    #res =  convolve(waveform, delayed[:len(waveform)])
-    #return res[(len(res)//2):]
+#@jit
+def delay(waveform, ms, level=0.5, sr=44100):
+    delay_samples = int((ms/1000) * sr)
+    window = get_window('hann', delay_samples, fftbins=False)
+    wet = np.zeros_like(waveform)
+    for i in range(1, len(waveform)//delay_samples):
+        adding = window * waveform[i*delay_samples:delay_samples*(i+1)] * level
+        for j in range(i, len(waveform)//delay_samples):
+            wet[j*delay_samples:(j+1)*delay_samples] += adding
+            adding *= level
+    return wet + waveform
+    
+    
 
 
 #sr, orig = wavfile.read("C:\\Users\\Chara Lilith\\Music\\untitled.wav")
@@ -188,7 +191,7 @@ def delay(waveform, ms, level=0.5, *args, **kwargs):
 
 t = np.linspace(0, 1, num=44100)
 x = bwl_sawtooth(t, 15)
-y = delay(x, 32, level=0.7)
+y = delay(x, 100, level=0.3)
 fig, axs = plt.subplots(1,2)
 axs[0].plot(t, x)
 axs[1].plot(t, y)
