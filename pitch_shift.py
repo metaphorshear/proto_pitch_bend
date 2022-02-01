@@ -174,27 +174,33 @@ def pitch_bend_demo():#input_wave, bend_wave):
 def delay(waveform, ms, level=0.5, sr=44100):
     delay_samples = int((ms/1000) * sr)
     window = get_window('hann', delay_samples, fftbins=False)
+    if waveform.ndim == 2:
+        window = window[:, np.newaxis]
     wet = np.zeros_like(waveform)
+    #can this be replaced with convolve?
     for i in range(1, len(waveform)//delay_samples):
         adding = window * waveform[i*delay_samples:delay_samples*(i+1)] * level
         for j in range(i, len(waveform)//delay_samples):
             wet[j*delay_samples:(j+1)*delay_samples] += adding
             adding *= level
     return wet + waveform
-    
-    
 
 
-#sr, orig = wavfile.read("C:\\Users\\Chara Lilith\\Music\\untitled.wav")
-#bent = amplify(orig, pv_with_transform(orig, up_bend([0,0.25,0.5,0.7,1], [0,2,3,4,4])))
-#wavfile.write("C:\\Users\\Chara Lilith\\Music\\test.wav", sr, bent.astype(np.int16))
+infile = "test.wav"
+outfile = "output.wav"
 
-t = np.linspace(0, 1, num=44100)
-x = bwl_sawtooth(t, 15)
-y = delay(x, 100, level=0.3)
-fig, axs = plt.subplots(1,2)
-axs[0].plot(t, x)
-axs[1].plot(t, y)
+sr, orig = wavfile.read(infile)
+bent = amplify(orig, pv_with_transform(orig, up_bend([0,0.25,0.5,0.7,1], [0,2,3,4,4])))
+delayed = delay(bent, 180, 0.8, 44100)
+wavfile.write(outfile, sr, delayed.astype(np.int16))
+
+
+#t = np.linspace(0, 1, num=44100)
+#x = bwl_sawtooth(t, 15)
+#y = delay(x, 100, level=0.3)
+#fig, axs = plt.subplots(1,2)
+#axs[0].plot(t, x)
+#axs[1].plot(t, y)
 
 #TODO: maybe find a resource on autocorrelation?
 #there's also this: https://github.com/audacity/audacity/blob/5519fb9fefc34b9533374d19309d00776cc00022/src/SpectrumAnalyst.cpp
