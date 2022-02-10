@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from scipy.io import wavfile
 from scipy.interpolate import interp1d
-from scipy.signal import sawtooth, get_window
+from scipy.signal import sawtooth, get_window, convolve
 from scipy.fft import fft,ifft #fftshift,ifftshift
 import numpy as np
 import matplotlib.pyplot as plt
@@ -171,27 +171,31 @@ def pitch_bend_demo():#input_wave, bend_wave):
     axs[1][1].set_yticks([-1, 1])
 
 #@jit
-def delay(waveform, ms, level=0.5, sr=44100):
+def echo(waveform, ms, level=0.5, sr=44100):
     delay_samples = int((ms/1000) * sr)
     window = get_window('hann', delay_samples, fftbins=False)
     if waveform.ndim == 2:
         window = window[:, np.newaxis]
     wet = np.zeros_like(waveform)
-    #can this be replaced with convolve?
     for i in range(1, len(waveform)//delay_samples):
         adding = window * waveform[i*delay_samples:delay_samples*(i+1)] * level
         for j in range(i, len(waveform)//delay_samples):
             wet[j*delay_samples:(j+1)*delay_samples] += adding
             adding *= level
-    return wet + waveform
+    return (wet, waveform)
+
+def vibrato(waveform, lfo, depth, sr=44100):
+    pass
+
 
 
 infile = "test.wav"
-outfile = "output.wav"
+outfile = "output2.wav"
 
 sr, orig = wavfile.read(infile)
 bent = amplify(orig, pv_with_transform(orig, up_bend([0,0.25,0.5,0.7,1], [0,2,3,4,4])))
-delayed = delay(bent, 180, 0.8, 44100)
+delayed = echo(bent, 180, 0.8, 44100)
+delayed = delayed[0] + delayed[1]
 wavfile.write(outfile, sr, delayed.astype(np.int16))
 
 
