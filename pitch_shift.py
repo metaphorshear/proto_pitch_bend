@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from scipy.io import wavfile
 from scipy.interpolate import interp1d
-from scipy.signal import sawtooth, get_window, convolve
+from scipy.signal import sawtooth, get_window, square
 from scipy.fft import fft,ifft #fftshift,ifftshift
 import numpy as np
 import matplotlib.pyplot as plt
@@ -94,7 +94,6 @@ def padding_wave(t, freq):
 def pv_with_transform(waveform, pitchFactor, adjustHighpasses=False):
     transform = dtcwt.Transform1d()
     
-    
     tfd = transform.forward(waveform, nlevels=1)
     new_lowpass = phase_vocode(tfd.lowpass, pitchFactor)
     
@@ -119,7 +118,17 @@ def pv_with_transform(waveform, pitchFactor, adjustHighpasses=False):
 
 
 def pitch_shift(waveform, semitones, adjustHighpasses=False):
-    #add in a docstring to this later.  (I hate the format Spyder inserts.)
+    """increase or decrease the pitch of a sound
+
+    Args:
+        waveform (numpy array): input sound
+        semitones (number): add this many semitones to the original.  12 for an octave up.
+        adjustHighpasses (bool, optional): whether or not to apply the effect
+        to the highpass(es) returned by the wavelet transform. Defaults to False.
+
+    Returns:
+        (numpy array): the pitch bent sound
+    """
     #adjustHighpasses: True will run the phase vocoder on each high pass.
     #this probably isn't necessary, since the low pass is likely to have
     #most audible frequencies anyway.
@@ -144,18 +153,41 @@ def demo_scale(inputW, outputW):
     )
     wavfile.write(outputW, sr, after.astype(np.int16))
 
-def up_bend(times, pitches, seconds=15, sr=44100, kind='linear'):
-    #pitches and times will be arrays of equal length
-    #take pitches as semitones
+def bend_helper(times, pitches, seconds=15, sr=44100, kind='linear'):
+    """helper function for pitch bending with the phase vocoder
+
+    Args:
+        times (list): when the pitch will change.  0 is the beginning and 1 is the end.
+        pitches (list): semitones to adjust the pitch at each time.  must be as long as times.
+        seconds (int, optional): how long the bend curve should be. Defaults to 15.
+        sr (int, optional): sampling rate. Defaults to 44100.
+        kind (str, optional): the kind of interpolation to use. Defaults to 'linear'.
+        should be one of the types recognized by scipy.interp1d.
+
+    Returns:
+        [type]: [description]
+    """
     pitches = [2**(-semitones/12) for semitones in pitches]
     t = np.linspace(0, 1, num=seconds*sr)
     y = interp1d(times, pitches, kind, fill_value='extrapolate')
     plt.plot(t, y(t))
     return y(t)
 
+def pitch_bend(waveform, bend_curve):
+    """apply a pitch bend (changing pitch over time)
+
+    Args:
+        waveform (numpy array): the input sound
+        bend_curve (numpy array): amount to shift pitch at each timepoint.
+
+    Returns:
+        bent wave
+    """
+    return pv_with_transform(waveform, bend_curve)
+
 def pitch_bend_demo():#input_wave, bend_wave):
     t = np.linspace(0, 2, num=44100*2)
-    y = up_bend([0, 0.3, 0.7, 1], [0, 1, 2, 3], 2)
+    y = bend_helper([0, 0.3, 0.7, 1], [0, 1, 2, 3], 2)
     fig, axs = plt.subplots(2,2)
     axs[0][0].plot(t, y)
     z = 0.7 * np.sin(t*np.pi*10)
@@ -172,6 +204,17 @@ def pitch_bend_demo():#input_wave, bend_wave):
 
 #@jit
 def echo(waveform, ms, level=0.5, sr=44100):
+    """add a simple echo effect
+
+    Args:
+        waveform (numpy array): the input wave
+        ms (int): delay time in milliseconds
+        level (float, optional): how loud the first echo should be. Defaults to 0.5.
+        sr (int, optional): sample rate. Defaults to 44100.
+
+    Returns:
+        wet (numpy array): waveform with the effect applied
+    """
     delay_samples = int((ms/1000) * sr)
     window = get_window('hann', delay_samples, fftbins=False)
     if waveform.ndim == 2:
@@ -182,10 +225,40 @@ def echo(waveform, ms, level=0.5, sr=44100):
         for j in range(i, len(waveform)//delay_samples):
             wet[j*delay_samples:(j+1)*delay_samples] += adding
             adding *= level
-    return (wet, waveform)
+    return wet
 
-def vibrato(waveform, lfo, depth, sr=44100):
-    pass
+#@jit(nopython=True)
+def vibrato(waveform, frequency, depth, lfo_type=np.sin, sr=44100):
+    """
+    vibrato using variable delay.
+    Args:
+        waveform (numpy array): the carrier wave to apply vibrato (or FM) to
+        frequency (float): frequency of the LFO.
+        depth (float): how strongly to apply the effect.  the amplitude of the lfo.
+        lfo_type (function, optional): how to generate the LFO.  Defaults to sine wave.
+        Should work like np.sin.
+        sr (int, optional): sampling rate. Defaults to 44100.
+
+    Returns:
+        wet (numpy array): waveform with the effect applied
+    """
+    #TODO: figure out how to use numba on this
+    #also not sure if this is quite right.  parameters don't seem to change it enough.
+    length = waveform.shape[0]/sr
+    t = np.linspace(0, length, num=waveform.shape[0])
+    lfo = lfo_type(t*2*np.pi*frequency) * depth
+    wet = np.zeros_like(waveform)
+    for i in range(len(t)):
+        if lfo[i] == 0:
+            wet[i] = waveform[i]
+        else:
+            other = lfo[i]
+            if other < 0:
+                other = np.floor(other)
+            else:
+                other = np.ceil(other)
+            wet[i] = lfo[i] * waveform[int(other)] + waveform[i] * (depth-lfo[i])
+    return wet
 
 
 
@@ -193,10 +266,11 @@ infile = "test.wav"
 outfile = "output2.wav"
 
 sr, orig = wavfile.read(infile)
-bent = amplify(orig, pv_with_transform(orig, up_bend([0,0.25,0.5,0.7,1], [0,2,3,4,4])))
-delayed = echo(bent, 180, 0.8, 44100)
-delayed = delayed[0] + delayed[1]
-wavfile.write(outfile, sr, delayed.astype(np.int16))
+bent = amplify(orig, pv_with_transform(orig, bend_helper([0,0.25,0.5,0.7,1], [0,2,3,4,4])))
+#delayed = echo(bent, 180, 0.8, 44100)
+#delayed = delayed[0] + delayed[1]
+vibed = (vibrato(bent, 5, 0.35) + bent)*0.75
+wavfile.write(outfile, sr, vibed.astype(np.int16))
 
 
 #t = np.linspace(0, 1, num=44100)
