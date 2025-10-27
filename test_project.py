@@ -1,4 +1,5 @@
 import pitch_bend as pb
+import numpy as np
 
 class TestPitchBend:
   def test_vibrato(self):
