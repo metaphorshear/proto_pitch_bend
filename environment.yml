@@ -1,0 +1,7 @@
+name: proto_pitch_bend
+dependencies:
+- numpy
+- scipy
+- matplotlib
+- numba
+- pip
